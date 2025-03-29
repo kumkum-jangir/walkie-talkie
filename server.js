@@ -1,27 +1,32 @@
 const express = require("express");
-const { Server } = require("ws");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
 
 const app = express();
-const PORT = 8080;
+const server = http.createServer(app);
 
-// Create WebSocket Server
-const wss = new Server({ port: PORT });
+app.use(cors());
 
-wss.on("connection", (ws) => {
-    console.log("A new user connected");
-
-    ws.on("message", (message) => {
-        console.log("Received:", message);
-
-        // Broadcast the message to all other clients
-        wss.clients.forEach(client => {
-            if (client !== ws && client.readyState === 1) {
-                client.send(message);
-            }
-        });
-    });
-
-    ws.on("close", () => console.log("User disconnected"));
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Change this to restrict access
+    methods: ["GET", "POST"]
+  }
 });
 
-console.log(`WebSocket server running on ws://localhost:${PORT}`);
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("sendVoice", (data) => {
+    console.log("Voice Data Received", data);
+    socket.broadcast.emit("receiveVoice", data); // Send voice data to all clients except sender
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+const PORT = 8080;
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
